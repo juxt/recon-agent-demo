@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Thin wrapper so the tool is one command: ./recon check B-1001
+# Builds on first use, then runs the installed binary.
+set -euo pipefail
+cd "$(dirname "$0")"
+
+BIN="build/install/recon/bin/recon"
+
+if [ ! -x "$BIN" ] || [ -n "$(find src build.gradle.kts -newer "$BIN" 2>/dev/null | head -1)" ]; then
+  ./gradlew installDist --console=plain -q >/dev/null
+fi
+
+exec "$BIN" "$@"

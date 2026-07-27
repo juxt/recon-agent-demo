@@ -1,0 +1,5 @@
+[
+  { "analystId": "asel", "name": "Asel Duman", "authorised": true },
+  { "analystId": "moreno", "name": "Pilar Moreno", "authorised": true },
+  { "analystId": "tempstaff", "name": "Contract Reviewer", "authorised": false }
+]

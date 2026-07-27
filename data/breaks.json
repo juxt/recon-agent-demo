@@ -1,0 +1,72 @@
+[
+  {
+    "breakId": "B-1001",
+    "product": "INTEREST_RATE_SWAP",
+    "currency": "USD",
+    "tradeAmount": "125430.00",
+    "confirmationAmount": "125310.00",
+    "counterpartyId": "CP-4471",
+    "counterpartyName": "Northgate Capital",
+    "raisedAt": "2026-07-16T06:12:00Z",
+    "note": "Day-count rounding on the fixed leg. Counterparty has settled cleanly for 14 months."
+  },
+  {
+    "breakId": "B-1002",
+    "product": "INTEREST_RATE_SWAP",
+    "currency": "USD",
+    "tradeAmount": "308915.50",
+    "confirmationAmount": "308735.50",
+    "counterpartyId": "CP-2210",
+    "counterpartyName": "Ardsley Partners",
+    "raisedAt": "2026-07-16T06:12:00Z",
+    "amendmentInFlight": true,
+    "note": "Sales amended a mistyped rate shortly after booking; the amendment is still flowing through the chain."
+  },
+  {
+    "breakId": "B-1003",
+    "product": "INTEREST_RATE_SWAP",
+    "currency": "EUR",
+    "tradeAmount": "96210.00",
+    "confirmationAmount": "92010.00",
+    "counterpartyId": "CP-8890",
+    "counterpartyName": "Rheinwerk Bank",
+    "raisedAt": "2026-07-16T06:12:00Z",
+    "note": "Materially different settlement amounts, well beyond the EUR closure tolerance."
+  },
+  {
+    "breakId": "B-1004",
+    "product": "FX_FORWARD",
+    "currency": "USD",
+    "tradeAmount": "88240.00",
+    "confirmationAmount": "88200.00",
+    "counterpartyId": "CP-3140",
+    "counterpartyName": "Helvetia Markets",
+    "raisedAt": "2026-07-16T06:12:00Z",
+    "confirmedVersion": 1,
+    "currentVersion": 2,
+    "note": "A small difference, but the counterparty has not confirmed the current version of the trade."
+  },
+  {
+    "breakId": "B-1005",
+    "product": "INTEREST_RATE_SWAP",
+    "currency": "GBP",
+    "tradeAmount": "45900.00",
+    "confirmationAmount": "45805.00",
+    "counterpartyId": "CP-5567",
+    "counterpartyName": "Thames Clearing",
+    "raisedAt": "2026-07-16T06:12:00Z",
+    "openDispute": true,
+    "note": "Small difference, but the account has an unresolved dispute from June."
+  },
+  {
+    "breakId": "B-1006",
+    "product": "INTEREST_RATE_SWAP",
+    "currency": "JPY",
+    "tradeAmount": "250000.00",
+    "confirmationAmount": "249850.00",
+    "counterpartyId": "CP-9001",
+    "counterpartyName": "Kanda Securities",
+    "raisedAt": "2026-07-16T06:12:00Z",
+    "note": "A small yen difference, but no closure tolerance is configured for JPY. The USD cap is not applied by conversion."
+  }
+]

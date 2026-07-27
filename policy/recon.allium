@@ -1,0 +1,404 @@
+-- allium: 3
+-- Settlement break investigation and closure.
+--
+-- Derived by the elicit loop from the prose policy (recon-policy.md, clauses
+-- 4.3.1-4.3.6). Two points the prose left silent were escalated to the policy
+-- owner and answered before anything was written down:
+--   * a cap stated in USD is not applied to a difference in another currency by
+--     conversion; caps are set per currency, and a break in a currency with no
+--     configured cap is escalated;
+--   * an escalation trigger outranks the tolerance -- a case escalates even when
+--     the difference is within the band.
+-- Those answers were written into the policy as amendments, clause 4.3.2a and
+-- the opening words of 4.3.3, and they are the guidance on CheckBreak below.
+-- The rules say what the system must do; the invariants say what must never be
+-- true of it, whatever any model proposes.
+
+------------------------------------------------------------
+-- Enumerations
+------------------------------------------------------------
+
+enum VerdictStatus {
+    within_band
+    | breach
+    | escalate_required
+}
+
+enum CaseOutcome {
+    open
+    | proposed
+    | closed
+    | escalated
+}
+
+enum Actor {
+    agent
+    | analyst
+    | system
+}
+
+------------------------------------------------------------
+-- Value Types
+------------------------------------------------------------
+
+value Reason {
+    rule_id: String
+    detail: String
+}
+
+-- What the deterministic check hands back. Every field is something an auditor
+-- asks for: which rule fired, against which threshold, under which policy.
+value Verdict {
+    verdict_id: String
+    status: VerdictStatus
+    rule_id: String
+    difference: Decimal
+    threshold_applied: Decimal?
+    currency: String
+    policy_version: String
+    reasons: Reason
+    checked_at: Timestamp
+}
+
+------------------------------------------------------------
+-- Entities and Variants
+------------------------------------------------------------
+
+-- Raised by the reconciliation platform. This is the system of record for the
+-- figures; the agent supplies only the identifier.
+entity BreakRecord {
+    break_id: String
+    product: String
+    currency: String
+    trade_amount: Decimal
+    confirmation_amount: Decimal
+    counterparty_id: String
+    counterparty_name: String
+    raised_at: Timestamp
+    amendment_in_flight: Boolean
+    confirmed_version: Integer
+    current_version: Integer
+    open_dispute: Boolean
+    note: String?
+
+    -- Derived
+    difference: abs(trade_amount - confirmation_amount)
+
+    @guidance
+        -- difference is the only figure the tolerance is measured against, and
+        -- it carries the break's currency. Amounts are decimal throughout; no
+        -- binary floating point is permitted anywhere in the settlement path.
+        -- product is routing context (s4.3.1), never an input to the check.
+}
+
+-- Policy as configuration the business owns. s4.3.2, keyed on currency: a cap is
+-- set for each currency in which breaks arise and is stated in that currency.
+entity ClosureTolerance {
+    id: String
+    currency: String
+    absolute_cap: Decimal
+
+    @guidance
+        -- The threshold is absolute_cap, in this currency. A cap in one currency
+        -- is never applied to a difference in another by conversion: a tolerance
+        -- that moves with the FX market cannot be audited after the fact.
+}
+
+-- s4.3.3. Config names the condition, code decides what it means, and the
+-- vocabulary of conditions is closed.
+entity EscalationTrigger {
+    id: String
+    condition: String
+    detail: String
+}
+
+entity ReconAgent {
+    agent_id: String
+}
+
+entity Analyst {
+    analyst_id: String
+    authorised: Boolean
+
+    @guidance
+        -- s4.3.5 requires an authorised analyst. Authorisation is a property of
+        -- the person, held outside the agent's reach.
+}
+
+entity BreakCase {
+    break_id: String
+    outcome: CaseOutcome
+    verdict_id: String
+    policy_version: String
+    confirmed_by: String?
+
+    transitions outcome {
+        open -> proposed
+        open -> escalated
+        proposed -> closed
+        proposed -> escalated
+        terminal: closed, escalated
+    }
+}
+
+-- Append-only and hash-chained. s4.3.6.
+entity AuditRecord {
+    seq: Integer
+    recorded_at: Timestamp
+    break_id: String
+    actor: Actor
+    action: String
+    outcome: String
+    verdict_id: String?
+    rule_id: String?
+    policy_version: String?
+    detail: String?
+    previous_hash: String?
+    record_hash: String
+
+    @guidance
+        -- previous_hash is the record_hash of the preceding record; the first
+        -- record in the chain has none. All fields participate in the hash so
+        -- that neither editing nor removing a record can go unnoticed.
+}
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- The tool contract, as the specification states it. Three actions are offered
+-- to the agent and no others. Notice what is absent: nothing here lets the agent
+-- close a break, and nothing lets it supply a figure. The projection it may read
+-- is just as deliberate: the derived difference but never the two raw amounts,
+-- and none of the trigger inputs the check evaluates. The agent learns which
+-- triggers fired from the verdict, never by inspecting the record.
+surface AgentToolset {
+    facing viewer: ReconAgent
+    context break_record: BreakRecord
+
+    provides: CheckRequested(viewer, break_id)
+    provides: ClosureProposed(viewer, break_id, rationale)
+    provides: EscalationRequested(viewer, break_id, findings)
+
+    exposes:
+        break_record.break_id
+        break_record.product
+        break_record.difference
+        break_record.currency
+        break_record.counterparty_id
+        break_record.counterparty_name
+        break_record.raised_at
+        break_record.note
+}
+
+-- The analyst's queue. Confirmation lives here and nowhere else.
+surface AnalystQueue {
+    facing viewer: Analyst
+    context case: BreakCase
+
+    provides: ConfirmationSubmitted(break_id, viewer) when case.outcome = proposed
+
+    exposes:
+        case.outcome
+        case.verdict_id
+        case.policy_version
+}
+
+------------------------------------------------------------
+-- Rules
+------------------------------------------------------------
+
+rule CheckBreak {
+    when: CheckRequested(agent, break_id)
+    let record = BreakRecord{break_id: break_id}
+    let tolerance = ClosureTolerance{currency: record.currency}
+    let threshold = tolerance.absolute_cap
+    let triggers_fired = EscalationTrigger where holds_for(
+        record.amendment_in_flight,
+        record.confirmed_version,
+        record.current_version,
+        record.open_dispute
+    )
+
+    ensures: Verdict.produced(
+        status: verdict_status(record, tolerance, threshold, triggers_fired),
+        rule_id: governing_rule(tolerance, triggers_fired),
+        difference: record.difference,
+        threshold_applied: threshold,
+        currency: record.currency,
+        policy_version: current_policy_version,
+        checked_at: now
+    )
+    ensures: AuditRecord.created(
+        break_id: break_id,
+        actor: agent,
+        action: "CHECK",
+        recorded_at: now,
+        record_hash: compute_hash(all_fields, previous_hash)
+    )
+
+    @guidance
+        -- verdict_status resolves in this order:
+        --   1. no cap configured for the currency -> escalate_required (s4.3.2a)
+        --   2. any escalation trigger holds        -> escalate_required (s4.3.3)
+        --   3. difference <= threshold             -> within_band       (s4.3.2)
+        --   4. otherwise                           -> breach            (s4.3.4)
+        -- Steps 1 and 2 are checked before the tolerance: an escalation trigger
+        -- outranks the band, and a currency with no cap has no band to be
+        -- inside. The check is a pure function of the break record and the
+        -- policy; the same inputs always produce the same verdict.
+}
+
+rule ProposeClosure {
+    when: ClosureProposed(agent, break_id, rationale)
+    let verdict = CheckBreak(break_id)
+    requires: verdict.status = within_band
+
+    ensures: BreakCase.created(
+        break_id: break_id,
+        outcome: proposed,
+        verdict_id: verdict.verdict_id,
+        policy_version: verdict.policy_version
+    )
+    ensures: AuditRecord.created(
+        break_id: break_id,
+        actor: agent,
+        action: "PROPOSE_CLOSURE",
+        recorded_at: now,
+        record_hash: compute_hash(all_fields, previous_hash)
+    )
+
+    @guidance
+        -- The action re-runs the check itself rather than trusting a verdict it
+        -- is handed. The rationale is recorded and never consulted: no wording
+        -- can make a proposal admissible that the check does not permit.
+}
+
+rule RefuseClosureProposal {
+    when: ClosureProposed(agent, break_id, rationale)
+    let verdict = CheckBreak(break_id)
+    requires: verdict.status != within_band
+
+    ensures: AuditRecord.created(
+        break_id: break_id,
+        actor: agent,
+        action: "PROPOSE_CLOSURE",
+        recorded_at: now,
+        record_hash: compute_hash(all_fields, previous_hash)
+    )
+
+    @guidance
+        -- Refusal is itself an audited event. An attempt to close something the
+        -- policy protects is exactly the thing a reviewer will want to see.
+}
+
+rule Escalate {
+    when: EscalationRequested(agent, break_id, findings)
+    let verdict = CheckBreak(break_id)
+
+    ensures: BreakCase.created(
+        break_id: break_id,
+        outcome: escalated,
+        verdict_id: verdict.verdict_id,
+        policy_version: verdict.policy_version
+    )
+    ensures: AuditRecord.created(
+        break_id: break_id,
+        actor: agent,
+        action: "ESCALATE",
+        recorded_at: now,
+        record_hash: compute_hash(all_fields, previous_hash)
+    )
+
+    @guidance
+        -- Always permitted, from any verdict. The agent may add doubt; it can
+        -- never remove it. Findings carry evidence and no recommended
+        -- disposition (s4.3.4).
+}
+
+rule ConfirmClosure {
+    when: ConfirmationSubmitted(break_id, analyst)
+    let case = BreakCase{break_id: break_id}
+    requires: case.outcome = proposed
+
+    ensures: case.outcome = closed
+    ensures: case.confirmed_by = analyst
+    ensures: AuditRecord.created(
+        break_id: break_id,
+        actor: analyst,
+        action: "CONFIRM_CLOSURE",
+        recorded_at: now,
+        record_hash: compute_hash(all_fields, previous_hash)
+    )
+
+    @guidance
+        -- s4.3.5. Closure takes effect on the analyst's confirmation, not on the
+        -- agent's proposal. The analyst cannot delegate the decision back.
+}
+
+------------------------------------------------------------
+-- Invariants
+------------------------------------------------------------
+
+invariant NoClosureWithoutAPermittingVerdict {
+    -- The property the whole design exists to hold. No case reaches closed
+    -- unless a check said within_band, whatever narrative accompanied it.
+    for c in BreakCases:
+        c.outcome = closed implies verdict_of(c).status = within_band
+}
+
+invariant NoClosureWithoutAPerson {
+    -- s4.3.5. An agent proposes; a person closes.
+    for c in BreakCases:
+        c.outcome = closed implies c.confirmed_by != null
+}
+
+invariant EveryCaseIsPinnedToAPolicyVersion {
+    -- s4.3.6. A case closed under one version of the policy must remain
+    -- traceable to that version after the policy changes.
+    for c in BreakCases:
+        c.policy_version != ""
+}
+
+invariant EscalationConditionsAreAClosedVocabulary {
+    -- Config names a condition; code decides what it means. The policy may
+    -- choose which triggers apply, never invent new behaviour for them.
+    for t in EscalationTriggers:
+        t.condition in {"amendment_in_flight", "confirmation_version_mismatch", "open_dispute"}
+}
+
+invariant EveryTriggerExplainsItself {
+    -- An escalation arrives at a person with a reason they can read.
+    for t in EscalationTriggers:
+        t.id != "" and t.detail != ""
+}
+
+invariant CapsArePositive {
+    -- A cap must be a meaningful positive amount in its currency.
+    for t in ClosureTolerances:
+        t.id != "" and t.currency != "" and t.absolute_cap > 0
+}
+
+invariant BreakFiguresAreWellFormed {
+    for b in BreakRecords:
+        b.trade_amount >= 0 and b.confirmation_amount >= 0
+}
+
+invariant ConfirmationNeverLeadsTheTrade {
+    -- A counterparty cannot have confirmed a version that does not exist yet.
+    for b in BreakRecords:
+        b.confirmed_version <= b.current_version
+}
+
+invariant EveryAuditRecordIsHashed {
+    for a in AuditRecords:
+        a.record_hash != ""
+}
+
+invariant AuditChainHasOneAnchor {
+    -- At most one record has no predecessor; that record anchors the chain.
+    for a in AuditRecords:
+        for b in AuditRecords:
+            (a != b and a.previous_hash = null and b.previous_hash = null)
+                implies false
+}

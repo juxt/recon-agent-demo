@@ -1,0 +1,36 @@
+# The same policy after Operations Risk tightened the USD closure tolerance.
+#
+# Nothing in the agent changes. Nothing in the checker changes. A number in a
+# config file changes, and breaks that were closeable yesterday are not today.
+# Cases already closed remain pinned to the version they ran under.
+
+policy_version: "2026.08.v1"
+source: "Settlement Reconciliation Policy, section 4.3 (August revision)"
+effective_from: "2026-08-01"
+approved_by: "Operations Risk Committee"
+
+closure_tolerances:
+  - id: "TOLERANCE-USD"
+    currency: "USD"
+    absolute_cap: "100.00"
+
+  - id: "TOLERANCE-EUR"
+    currency: "EUR"
+    absolute_cap: "90.00"
+
+  - id: "TOLERANCE-GBP"
+    currency: "GBP"
+    absolute_cap: "80.00"
+
+escalation_triggers:
+  - id: "ESC-AMEND-IN-FLIGHT"
+    condition: "amendment_in_flight"
+    detail: "An amendment is in flight upstream. The break may re-match on the next cycle and must not be closed in the meantime."
+
+  - id: "ESC-UNCONFIRMED-VERSION"
+    condition: "confirmation_version_mismatch"
+    detail: "The counterparty has not confirmed the current version of the trade."
+
+  - id: "ESC-OPEN-DISPUTE"
+    condition: "open_dispute"
+    detail: "The account carries an open dispute. Closure requires a person."

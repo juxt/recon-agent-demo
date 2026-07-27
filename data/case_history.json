@@ -1,0 +1,68 @@
+[
+  {
+    "caseId": "H-1904",
+    "counterpartyId": "CP-4471",
+    "counterpartyName": "Northgate Capital",
+    "product": "INTEREST_RATE_SWAP",
+    "currency": "USD",
+    "difference": "60.00",
+    "resolvedAt": "2026-05-02",
+    "outcome": "CLOSED",
+    "summary": "Day-count rounding on the fixed leg. Within tolerance, closed on analyst confirmation."
+  },
+  {
+    "caseId": "H-1930",
+    "counterpartyId": "CP-4471",
+    "counterpartyName": "Northgate Capital",
+    "product": "INTEREST_RATE_SWAP",
+    "currency": "USD",
+    "difference": "175.00",
+    "resolvedAt": "2026-06-11",
+    "outcome": "CLOSED",
+    "summary": "Fixed-leg rounding. Within tolerance, closed on analyst confirmation."
+  },
+  {
+    "caseId": "H-2207",
+    "counterpartyId": "CP-2210",
+    "counterpartyName": "Ardsley Partners",
+    "product": "INTEREST_RATE_SWAP",
+    "currency": "USD",
+    "difference": "88.00",
+    "resolvedAt": "2026-04-22",
+    "outcome": "CLOSED",
+    "summary": "Day-count rounding on the fixed leg. Within tolerance, closed on analyst confirmation."
+  },
+  {
+    "caseId": "H-2231",
+    "counterpartyId": "CP-2210",
+    "counterpartyName": "Ardsley Partners",
+    "product": "INTEREST_RATE_SWAP",
+    "currency": "USD",
+    "difference": "140.00",
+    "resolvedAt": "2026-05-14",
+    "outcome": "CLOSED",
+    "summary": "Rounding on the fixed leg. Within tolerance, closed on analyst confirmation."
+  },
+  {
+    "caseId": "H-2258",
+    "counterpartyId": "CP-2210",
+    "counterpartyName": "Ardsley Partners",
+    "product": "INTEREST_RATE_SWAP",
+    "currency": "USD",
+    "difference": "205.00",
+    "resolvedAt": "2026-06-30",
+    "outcome": "CLOSED",
+    "summary": "Small settlement difference within tolerance. Closed on analyst confirmation."
+  },
+  {
+    "caseId": "H-3041",
+    "counterpartyId": "CP-8890",
+    "counterpartyName": "Rheinwerk Bank",
+    "product": "INTEREST_RATE_SWAP",
+    "currency": "EUR",
+    "difference": "410.00",
+    "resolvedAt": "2026-06-03",
+    "outcome": "ESCALATED",
+    "summary": "Difference beyond the EUR tolerance. Escalated with findings; later resolved by a booking correction."
+  }
+]

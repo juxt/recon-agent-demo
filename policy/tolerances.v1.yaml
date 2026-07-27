@@ -1,0 +1,46 @@
+# Settlement break closure policy, as configuration.
+#
+# This file is the machine-legible form of section 4.3 of the Settlement
+# Reconciliation Policy (see recon-policy.md). It is owned by Operations Risk,
+# versioned like code, and changed without a code release.
+#
+# Caps are set per currency and stated in the currency they apply to. When the
+# policy was made executable, one question the original prose (recon-policy.original.md) left open was how a cap
+# stated in USD applies to a difference in another currency. The committee's
+# answer: it does not. An equivalent cap is set for each currency the bank trades
+# in, rather than converting a USD cap at a floating rate, because a tolerance
+# that moves with the FX market is a tolerance nobody can audit after the fact. A
+# break in a currency with no configured cap is escalated, not measured.
+
+policy_version: "2026.07.v1"
+source: "Settlement Reconciliation Policy, section 4.3"
+effective_from: "2026-07-01"
+approved_by: "Operations Risk Committee"
+
+# s4.3.2 — the closure tolerance for each currency in which breaks arise.
+closure_tolerances:
+  - id: "TOLERANCE-USD"
+    currency: "USD"
+    absolute_cap: "250.00"
+
+  - id: "TOLERANCE-EUR"
+    currency: "EUR"
+    absolute_cap: "230.00"
+
+  - id: "TOLERANCE-GBP"
+    currency: "GBP"
+    absolute_cap: "200.00"
+
+# s4.3.3 — conditions that require a person whatever the tolerance says.
+escalation_triggers:
+  - id: "ESC-AMEND-IN-FLIGHT"
+    condition: "amendment_in_flight"
+    detail: "An amendment is in flight upstream. The break may re-match on the next cycle and must not be closed in the meantime."
+
+  - id: "ESC-UNCONFIRMED-VERSION"
+    condition: "confirmation_version_mismatch"
+    detail: "The counterparty has not confirmed the current version of the trade."
+
+  - id: "ESC-OPEN-DISPUTE"
+    condition: "open_dispute"
+    detail: "The account carries an open dispute. Closure requires a person."
