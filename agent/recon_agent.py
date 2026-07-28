@@ -2,8 +2,8 @@
 """
 The API path: a settlement-break agent as a plain tool-use loop.
 
-The subscription path lives in CLAUDE.md — open this directory in Claude Code and
-ask it to work the queue. This script is the same idea through the Claude API, so
+The subscription path lives in AGENTS.md — open this directory in a coding agent
+and ask it to work the queue. This script is the same idea through the Claude API, so
 you can see the mechanics with nothing hidden: the tool contract the model is
 handed, the loop that runs its tool calls, and the gate that the deterministic
 checker enforces regardless of what the model decides.

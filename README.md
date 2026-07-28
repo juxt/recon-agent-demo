@@ -62,10 +62,11 @@ while cases already closed still point at the version that closed them.
 
 ## Working it with an agent
 
-Open this directory in [Claude Code](https://claude.com/claude-code) and ask it
-to work the queue. `CLAUDE.md` gives it the tools and the rules of engagement; it
-gets no special knowledge of which breaks may be closed, because that is the
-check's job, not the model's.
+Open this directory in a coding agent and ask it to work the queue. `AGENTS.md`
+gives it the tools and the rules of engagement, and a one-line `CLAUDE.md`
+imports it for [Claude Code](https://claude.com/claude-code). It gets no special
+knowledge of which breaks may be closed, because that is the check's job, not
+the model's.
 
 With an API key, `agent/recon_agent.py` runs the same case through a plain
 tool-use loop you can read in full, including the gate that returns a refused
